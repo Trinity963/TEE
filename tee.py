@@ -36,6 +36,8 @@ from runtime  import Runtime
 from gateway  import Gateway
 sys.path.insert(0, str(Path(__file__).parent / 'adapters'))
 from ollama   import OllamaAdapter
+sys.path.insert(0, str(Path(__file__).parent / 'ui'))
+import server as ui_server
 
 # ── Version ───────────────────────────────────────────────────────────────────
 
@@ -308,6 +310,17 @@ def main():
     gateway = Gateway(registry, runtime, host=gw_host, port=gw_port)
     gateway.start()
 
+    # Start UI server
+    ui_host = "0.0.0.0"
+    ui_port = 8766
+    import threading
+    ui_thread = threading.Thread(
+        target=ui_server.run,
+        kwargs={"host": ui_host, "port": ui_port},
+        name="tee-ui",
+        daemon=True,
+    )
+    ui_thread.start()
     # Print state
     registry.print_manifest()
     runtime.print_status()
@@ -316,6 +329,7 @@ def main():
 
     print("─" * 60)
     print(f"  TEE is running — http://{gw_host}:{gw_port}/v1/")
+    print(f"  TEE UI running  — http://{ui_host}:{ui_port}/")
     print(f"  Models registered: {registry.model_count()}")
     print(f"  Drop a .gguf into any watched directory to add a model.")
     print(f"  Ctrl+C to stop.")
