@@ -398,6 +398,12 @@ function renderModels(s) {
   const rows = Object.values(reg.models).map(m => {
     const tags = (m.tags||[]).map(t => `<span class="tag">${t}</span>`).join('');
     const status = m.status || 'registered';
+    const isLoaded = status === 'loaded';
+    const btn = m.backend === 'ollama' && !isLoaded
+      ? `<button class="btn" onclick="doModelAction('load','${m.name.replace(/'/g,"\\'")}')">Load</button>`
+      : isLoaded
+        ? `<button class="btn" style="color:var(--red)" onclick="doModelAction('unload','${m.name.replace(/'/g,"\\'")}')">Unload</button>`
+        : `<button class="btn" onclick="doModelAction('load','${m.name.replace(/'/g,"\\'")}')">Load</button>`;
     return `<tr>
       <td>${m.name}</td>
       <td style="color:var(--muted)">${m.architecture||'—'}</td>
@@ -407,12 +413,31 @@ function renderModels(s) {
       <td style="color:var(--muted)">${m.context ? m.context.toLocaleString() : '—'}</td>
       <td>${tags}</td>
       <td><span class="badge ${status}">${status}</span></td>
+      <td>${btn}</td>
     </tr>`;
   }).join('');
   document.getElementById('models-table').innerHTML =
     `<table><thead><tr>
-      <th>Name</th><th>Arch</th><th>Params</th><th>Quant</th><th>Size</th><th>Context</th><th>Tags</th><th>Status</th>
+      <th>Name</th><th>Arch</th><th>Params</th><th>Quant</th><th>Size</th><th>Context</th><th>Tags</th><th>Status</th><th>Action</th>
     </tr></thead><tbody>${rows}</tbody></table>`;
+}
+
+async function doModelAction(action, name) {
+  const url = action === 'load' ? '/proxy/models/load' : '/proxy/models/unload';
+  try {
+    const r = await fetch(url, {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({model: name}),
+    });
+    const data = await r.json();
+    if (!r.ok) {
+      alert('Error: ' + (data.error?.message || JSON.stringify(data)));
+    }
+  } catch(e) {
+    alert('Request failed: ' + e);
+  }
+  await fetchStatus();
 }
 
 // ── Directories page ─────────────────────────────────────────────────────────
@@ -491,6 +516,10 @@ PROXY_ROUTES = {
     "/proxy/health": f"{TEE_API}/health",
     "/proxy/models": f"{TEE_API}/v1/models",
 }
+PROXY_POST_ROUTES = {
+    "/proxy/models/load":   f"{TEE_API}/v1/models/load",
+    "/proxy/models/unload": f"{TEE_API}/v1/models/unload",
+}
 
 
 class UIHandler(BaseHTTPRequestHandler):
@@ -508,6 +537,39 @@ class UIHandler(BaseHTTPRequestHandler):
             self._serve_config()
         else:
             self._404()
+
+    def do_POST(self):
+        import urllib.request, urllib.error
+        path = self.path.split("?")[0]
+        if path not in PROXY_POST_ROUTES:
+            self._404()
+            return
+        try:
+            length = int(self.headers.get("Content-Length", 0))
+            body = self.rfile.read(length) if length else b"{}"
+            req = urllib.request.Request(
+                PROXY_POST_ROUTES[path],
+                data=body,
+                headers={"Content-Type": "application/json"},
+                method="POST",
+            )
+            with urllib.request.urlopen(req, timeout=30) as r:
+                resp_body = r.read()
+                status = r.status
+            self.send_response(status)
+            self.send_header("Content-Type", "application/json")
+            self.send_header("Content-Length", str(len(resp_body)))
+            self.end_headers()
+            self.wfile.write(resp_body)
+        except urllib.error.HTTPError as e:
+            resp_body = e.read()
+            self.send_response(e.code)
+            self.send_header("Content-Type", "application/json")
+            self.send_header("Content-Length", str(len(resp_body)))
+            self.end_headers()
+            self.wfile.write(resp_body)
+        except Exception:
+            self._503()
 
     def _serve_html(self):
         body = HTML.encode("utf-8")

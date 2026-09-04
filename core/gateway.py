@@ -171,8 +171,51 @@ class TEEHandler(BaseHTTPRequestHandler):
             self._handle_chat()
         elif path == "/v1/embeddings":
             self._handle_embeddings()
+        elif path == "/v1/models/load":
+            self._handle_load()
+        elif path == "/v1/models/unload":
+            self._handle_unload()
         else:
             _error(self, 404, f"Unknown endpoint: {path}", "not_found")
+
+    def _handle_load(self):
+        """POST /v1/models/load — load a model into a backend."""
+        body = _read_body(self)
+        if not body:
+            _error(self, 400, "Field 'model' is required", "invalid_request")
+            return
+        model_name = body.get("model", "")
+        if not model_name:
+            _error(self, 400, "Field 'model' is required", "invalid_request")
+            return
+        log.info(f"POST /v1/models/load — model:{model_name}")
+        loaded = self.server.runtime.load(model_name)
+        if loaded is None:
+            entry = self.server.registry.get_model(model_name)
+            if entry is None:
+                _error(self, 404, f"Model '{model_name}' not found.", "model_not_found")
+            else:
+                _error(self, 503, f"Model '{model_name}' could not be loaded.", "backend_unavailable")
+            return
+        _json_response(self, 200, {"status": "loaded", "model": loaded.to_dict()})
+
+    def _handle_unload(self):
+        """POST /v1/models/unload — unload a model from its backend."""
+        body = _read_body(self)
+        if not body:
+            _error(self, 400, "Field 'model' is required", "invalid_request")
+            return
+        model_name = body.get("model", "")
+        if not model_name:
+            _error(self, 400, "Field 'model' is required", "invalid_request")
+            return
+        log.info(f"POST /v1/models/unload — model:{model_name}")
+        loaded = self.server.runtime.get_loaded(model_name)
+        if loaded is None:
+            _error(self, 404, f"Model '{model_name}' is not loaded.", "model_not_loaded")
+            return
+        self.server.runtime._unload(model_name)
+        _json_response(self, 200, {"status": "unloaded", "model": model_name})
 
     # ── Handlers ──────────────────────────────────────────────────────────────
 
