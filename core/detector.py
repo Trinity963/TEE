@@ -318,7 +318,7 @@ class Detector:
         info["parameters"] = self._estimate_params(block_count, embed_dim)
 
         # Quantization — from filename if not in metadata
-        quant_raw          = m.get("general.quantization_version", "")
+        quant_raw          = m.get("general.file_type", "")
         info["quantization"] = self._extract_quantization(quant_raw)
 
         # Context length
