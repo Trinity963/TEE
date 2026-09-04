@@ -1,0 +1,105 @@
+{
+  "_comment": "TEE GPU Profiles — open source, community maintained. PRs welcome.",
+  "_version": "1.0.0",
+
+  "gpus": [
+    {
+      "id": "rtx_5090",
+      "name": "NVIDIA RTX 5090",
+      "vram_gb": 32,
+      "architecture": "Blackwell",
+      "compute_capability": "10.0",
+      "recommended_backends": ["llama.cpp", "vllm"],
+      "multi_gpu_capable": true,
+      "label": "High End"
+    },
+    {
+      "id": "rtx_5080",
+      "name": "NVIDIA RTX 5080",
+      "vram_gb": 16,
+      "architecture": "Blackwell",
+      "compute_capability": "10.0",
+      "recommended_backends": ["llama.cpp", "vllm"],
+      "multi_gpu_capable": true,
+      "label": "High End"
+    },
+    {
+      "id": "rtx_4090",
+      "name": "NVIDIA RTX 4090",
+      "vram_gb": 24,
+      "architecture": "Ada Lovelace",
+      "compute_capability": "8.9",
+      "recommended_backends": ["llama.cpp", "vllm"],
+      "multi_gpu_capable": true,
+      "label": "High End"
+    },
+    {
+      "id": "rtx_4080",
+      "name": "NVIDIA RTX 4080",
+      "vram_gb": 16,
+      "architecture": "Ada Lovelace",
+      "compute_capability": "8.9",
+      "recommended_backends": ["llama.cpp", "vllm"],
+      "multi_gpu_capable": true,
+      "label": "High End"
+    },
+    {
+      "id": "rtx_3090",
+      "name": "NVIDIA RTX 3090",
+      "vram_gb": 24,
+      "architecture": "Ampere",
+      "compute_capability": "8.6",
+      "recommended_backends": ["llama.cpp", "vllm"],
+      "multi_gpu_capable": true,
+      "label": "High End"
+    },
+    {
+      "id": "rtx_3080",
+      "name": "NVIDIA RTX 3080",
+      "vram_gb": 10,
+      "architecture": "Ampere",
+      "compute_capability": "8.6",
+      "recommended_backends": ["llama.cpp"],
+      "multi_gpu_capable": true,
+      "label": "Mid Range"
+    },
+    {
+      "id": "rtx_3070",
+      "name": "NVIDIA RTX 3070",
+      "vram_gb": 8,
+      "architecture": "Ampere",
+      "compute_capability": "8.6",
+      "recommended_backends": ["llama.cpp"],
+      "multi_gpu_capable": true,
+      "label": "Mid Range"
+    },
+    {
+      "id": "rtx_3060",
+      "name": "NVIDIA RTX 3060",
+      "vram_gb": 12,
+      "architecture": "Ampere",
+      "compute_capability": "8.6",
+      "recommended_backends": ["llama.cpp"],
+      "multi_gpu_capable": false,
+      "label": "Mid Range"
+    },
+    {
+      "id": "cpu_only",
+      "name": "CPU Only",
+      "vram_gb": 0,
+      "architecture": "CPU",
+      "compute_capability": null,
+      "recommended_backends": ["llama.cpp"],
+      "multi_gpu_capable": false,
+      "label": "CPU Mode"
+    }
+  ],
+
+  "compatibility_rules": {
+    "single_gpu_comfortable_multiplier": 0.85,
+    "single_gpu_tight_multiplier": 0.95,
+    "multi_gpu_span_threshold_gb": 14,
+    "cpu_ram_multiplier": 1.5,
+    "notes": "Model size in GB must be <= vram_gb * multiplier to qualify for that tier"
+  }
+}

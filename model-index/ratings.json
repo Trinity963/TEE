@@ -1,0 +1,75 @@
+{
+  "_comment": "TEE Community Model Index — open source, community maintained",
+  "_version": "1.0.0",
+  "_updated": "2026-09-04",
+  "_maintainers": "TEE Community — PRs welcome",
+
+  "models": [
+    {
+      "id": "mistral-7b-instruct-v0.3",
+      "name": "Mistral 7B Instruct v0.3",
+      "architecture": "mistral",
+      "parameters": "7B",
+      "community_rating": 4.8,
+      "download_count": 0,
+      "tags": [
+        "⚡ Recommended",
+        "💻 Best for Code",
+        "✍️  Best for Writing"
+      ],
+      "description": "Fast, capable general purpose assistant. Excellent starting point for most users.",
+      "variants": [
+        { "quant": "Q4_K_M", "size_gb": 4.1, "label": "⚡ Recommended" },
+        { "quant": "Q5_K_S", "size_gb": 4.8, "label": "🎯 Better Quality" },
+        { "quant": "Q8_0",   "size_gb": 7.2, "label": "💎 Best Quality" },
+        { "quant": "F16",    "size_gb": 13.5, "label": "🔬 Full Precision" }
+      ],
+      "sources": {
+        "huggingface": "mistralai/Mistral-7B-Instruct-v0.3"
+      }
+    },
+    {
+      "id": "llama3-8b-instruct",
+      "name": "Meta Llama 3 8B Instruct",
+      "architecture": "llama3",
+      "parameters": "8B",
+      "community_rating": 4.7,
+      "download_count": 0,
+      "tags": [
+        "🏆 Top Rated",
+        "🧠 Best for Reasoning",
+        "✍️  Best for Writing"
+      ],
+      "description": "Meta's flagship small model. Strong reasoning, great instruction following.",
+      "variants": [
+        { "quant": "Q4_K_M", "size_gb": 4.9, "label": "⚡ Recommended" },
+        { "quant": "Q5_K_S", "size_gb": 5.7, "label": "🎯 Better Quality" },
+        { "quant": "Q8_0",   "size_gb": 8.5, "label": "💎 Best Quality" }
+      ],
+      "sources": {
+        "huggingface": "meta-llama/Meta-Llama-3-8B-Instruct"
+      }
+    },
+    {
+      "id": "phi-3-mini-4k-instruct",
+      "name": "Microsoft Phi-3 Mini 4K Instruct",
+      "architecture": "phi3",
+      "parameters": "3.8B",
+      "community_rating": 4.5,
+      "download_count": 0,
+      "tags": [
+        "💡 Hidden Gem",
+        "🚀 Fastest",
+        "✅ Runs on CPU alone"
+      ],
+      "description": "Tiny but surprisingly capable. Perfect for CPU-only systems or low VRAM setups.",
+      "variants": [
+        { "quant": "Q4_K_M", "size_gb": 2.2, "label": "⚡ Recommended" },
+        { "quant": "Q8_0",   "size_gb": 3.8, "label": "💎 Best Quality" }
+      ],
+      "sources": {
+        "huggingface": "microsoft/Phi-3-mini-4k-instruct-gguf"
+      }
+    }
+  ]
+}

@@ -1,0 +1,131 @@
+{
+  "_comment": "TEE Drive Profiles — open source, community maintained. PRs welcome.",
+  "_version": "1.0.0",
+
+  "drive_types": [
+    {
+      "id": "nvme",
+      "label": "Fast Drive",
+      "icon": "💾",
+      "detection_hints": ["nvme", "nvm express", "m.2"],
+      "typical_read_mbps": 5000,
+      "priority": 1,
+      "description": "NVMe SSD — fastest available storage. Best for frequently used models."
+    },
+    {
+      "id": "sata_ssd",
+      "label": "Main Drive",
+      "icon": "💽",
+      "detection_hints": ["sata", "ssd", "solid state"],
+      "typical_read_mbps": 550,
+      "priority": 2,
+      "description": "SATA SSD — fast and reliable. Good balance of speed and capacity."
+    },
+    {
+      "id": "hdd",
+      "label": "Large Storage",
+      "icon": "🗄️",
+      "detection_hints": ["hdd", "hard disk", "rotational", "spinning"],
+      "typical_read_mbps": 150,
+      "priority": 3,
+      "description": "Hard Drive — large capacity. Best for storing large models used occasionally."
+    },
+    {
+      "id": "usb",
+      "label": "USB Drive",
+      "icon": "🔌",
+      "detection_hints": ["usb", "flash", "thumb"],
+      "typical_read_mbps": 100,
+      "priority": 4,
+      "description": "USB Flash Drive — portable storage. Works but slower load times."
+    },
+    {
+      "id": "external",
+      "label": "External Drive",
+      "icon": "💿",
+      "detection_hints": ["external", "portable"],
+      "typical_read_mbps": 400,
+      "priority": 3,
+      "description": "External Drive — portable SSD or HDD. Good for model portability."
+    },
+    {
+      "id": "network",
+      "label": "Network Storage",
+      "icon": "🌐",
+      "detection_hints": ["nas", "network", "smb", "nfs", "cifs"],
+      "typical_read_mbps": 125,
+      "priority": 5,
+      "description": "Network Attached Storage — shared storage. Slower but accessible from multiple machines."
+    },
+    {
+      "id": "sd_card",
+      "label": "SD Card",
+      "icon": "📷",
+      "detection_hints": ["sd", "mmc", "sdcard"],
+      "typical_read_mbps": 90,
+      "priority": 6,
+      "description": "SD Card — compact portable storage. Slowest option, use only if necessary."
+    },
+    {
+      "id": "ramdisk",
+      "label": "Speed Cache",
+      "icon": "⚡",
+      "detection_hints": ["ram", "ramdisk", "tmpfs", "ramfs"],
+      "typical_read_mbps": 50000,
+      "priority": 0,
+      "description": "RAM Disk — fastest possible storage. Models load instantly but data is lost on shutdown."
+    },
+    {
+      "id": "unknown",
+      "label": "Storage Drive",
+      "icon": "💾",
+      "detection_hints": [],
+      "typical_read_mbps": 200,
+      "priority": 5,
+      "description": "Storage Drive — type could not be determined automatically."
+    }
+  ],
+
+  "health_states": [
+    {
+      "id": "healthy",
+      "label": "✅ Healthy",
+      "description": "Drive is operating normally."
+    },
+    {
+      "id": "low_space",
+      "label": "⚠️  Low Space",
+      "description": "Less than 20% free space remaining."
+    },
+    {
+      "id": "critical_space",
+      "label": "🔴 Critical — Running Low",
+      "description": "Less than 10% free space remaining."
+    },
+    {
+      "id": "full",
+      "label": "🚫 Full — Cannot Add Models",
+      "description": "No free space available."
+    },
+    {
+      "id": "high_temp",
+      "label": "⚠️  High Temperature",
+      "description": "Drive is running hotter than recommended."
+    },
+    {
+      "id": "smart_warning",
+      "label": "🔴 Drive Warning",
+      "description": "SMART diagnostics detected potential issues."
+    },
+    {
+      "id": "slow",
+      "label": "⚠️  Slow Response",
+      "description": "Drive is responding slower than expected."
+    },
+    {
+      "id": "disconnected",
+      "label": "🚫 Offline",
+      "description": "Drive is not responding or has been disconnected."
+    }
+  ]
+}
