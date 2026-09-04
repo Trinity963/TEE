@@ -347,6 +347,22 @@ class Runtime:
                 f"placement:{placement}  port:{port}"
             )
 
+            # Ollama models are already running — no process to spawn
+            if backend == "ollama":
+                ollama_port = int(entry.ollama_base.split(":")[-1]) if hasattr(entry, "ollama_base") else 11434
+                loaded = LoadedModel(
+                    name    = name,
+                    backend = "ollama",
+                    gpu_ids = [],
+                    port    = ollama_port,
+                    process = None,
+                    size_gb = entry.size_gb,
+                )
+                self._loaded[name] = loaded
+                self._registry.update_status(name, "loaded")
+                log.info(f"✓ Ollama passthrough: {name}  → {loaded.base_url()}")
+                return loaded
+
             process = self._launch_backend(entry, backend, gpu_ids, port)
             if process is None:
                 self._registry.update_status(name, "error", "Backend failed to launch")

@@ -232,15 +232,16 @@ class TEEHandler(BaseHTTPRequestHandler):
                 )
             return
 
-        # Wait for backend to be ready
-        ready = _wait_for_backend(loaded.base_url())
-        if not ready:
-            _error(
-                self, 503,
-                f"Backend for '{model_name}' did not become ready in time.",
-                "backend_timeout",
-            )
-            return
+        # Ollama is always already running — skip health wait
+        if loaded.backend != "ollama":
+            ready = _wait_for_backend(loaded.base_url())
+            if not ready:
+                _error(
+                    self, 503,
+                    f"Backend for '{model_name}' did not become ready in time.",
+                    "backend_timeout",
+                )
+                return
 
         # Apply model defaults if not overridden in request
         entry = self.server.registry.get_model(model_name)
@@ -276,10 +277,11 @@ class TEEHandler(BaseHTTPRequestHandler):
             _error(self, 503, f"Model '{model_name}' could not be loaded.", "backend_unavailable")
             return
 
-        ready = _wait_for_backend(loaded.base_url())
-        if not ready:
-            _error(self, 503, f"Backend timeout for '{model_name}'.", "backend_timeout")
-            return
+        if loaded.backend != "ollama":
+            ready = _wait_for_backend(loaded.base_url())
+            if not ready:
+                _error(self, 503, f"Backend timeout for '{model_name}'.", "backend_timeout")
+                return
 
         backend_url = f"{loaded.base_url()}/v1/embeddings"
         response, status = _proxy_request(backend_url, body)
