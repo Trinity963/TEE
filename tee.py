@@ -34,6 +34,8 @@ sys.path.insert(0, str(CORE))
 from registry import Registry
 from runtime  import Runtime
 from gateway  import Gateway
+sys.path.insert(0, str(Path(__file__).parent / 'adapters'))
+from ollama   import OllamaAdapter
 
 # ── Version ───────────────────────────────────────────────────────────────────
 
@@ -295,6 +297,9 @@ def main():
     if not args.no_watch:
         registry.start_watching()
 
+    # Start Ollama adapter
+    ollama_adapter = OllamaAdapter(registry)
+    ollama_adapter.start()
     # Start runtime
     runtime = Runtime(registry, config)
     runtime.start()
@@ -322,6 +327,7 @@ def main():
         print("\n\nShutting down TEE...")
         gateway.stop()
         runtime.stop()
+        ollama_adapter.stop()
         registry.stop_watching()
         print("TEE stopped. Sovereign to the end.\n")
         sys.exit(0)
