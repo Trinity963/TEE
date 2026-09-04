@@ -351,19 +351,39 @@ function renderDashboard(s) {
   if (!s.gpus || s.gpus.length === 0) {
     grid.innerHTML = '<div class="empty">No GPUs detected — CPU mode.</div>';
   } else {
-    grid.innerHTML = s.gpus.map(g => {
-      const used_pct = 100 - g.vram_free_pct;
-      const barClass = used_pct > 90 ? 'crit' : used_pct > 70 ? 'warn' : '';
-      const loaded = g.models_loaded && g.models_loaded.length
-        ? g.models_loaded.join(', ')
-        : 'none';
-      return `<div class="gpu-card">
-        <div class="gpu-name">GPU ${g.index} &nbsp;·&nbsp; ${g.name}</div>
-        <div class="vram-bar-wrap"><div class="vram-bar ${barClass}" style="width:${used_pct}%"></div></div>
-        <div class="vram-label">${g.vram_free_gb} GB free / ${g.vram_total_gb} GB total</div>
-        <div class="gpu-models">Loaded: ${loaded}</div>
-      </div>`;
-    }).join('');
+    // Build cards only on first render — then update in-place to preserve CSS transitions
+    const existingCards = grid.querySelectorAll('.gpu-card');
+    if (existingCards.length !== s.gpus.length) {
+      grid.innerHTML = s.gpus.map(g => {
+        const used_pct = 100 - g.vram_free_pct;
+        const barClass = used_pct > 90 ? 'crit' : used_pct > 70 ? 'warn' : '';
+        const loaded = g.models_loaded && g.models_loaded.length
+          ? g.models_loaded.join(', ') : 'none';
+        return `<div class="gpu-card" data-gpu="${g.index}">
+          <div class="gpu-name">GPU ${g.index} &nbsp;·&nbsp; ${g.name}</div>
+          <div class="vram-bar-wrap"><div class="vram-bar ${barClass}" id="vram-bar-${g.index}" style="width:${used_pct}%"></div></div>
+          <div class="vram-label" id="vram-label-${g.index}">${g.vram_free_gb} GB free / ${g.vram_total_gb} GB total</div>
+          <div class="gpu-models" id="gpu-models-${g.index}">Loaded: ${loaded}</div>
+        </div>`;
+      }).join('');
+    } else {
+      // Update in-place — transitions animate smoothly
+      s.gpus.forEach(g => {
+        const used_pct = 100 - g.vram_free_pct;
+        const barClass = used_pct > 90 ? 'crit' : used_pct > 70 ? 'warn' : '';
+        const bar = document.getElementById('vram-bar-' + g.index);
+        if (bar) {
+          bar.style.width = used_pct + '%';
+          bar.className = 'vram-bar ' + barClass;
+        }
+        const label = document.getElementById('vram-label-' + g.index);
+        if (label) label.textContent = g.vram_free_gb + ' GB free / ' + g.vram_total_gb + ' GB total';
+        const models = document.getElementById('gpu-models-' + g.index);
+        const loaded = g.models_loaded && g.models_loaded.length
+          ? g.models_loaded.join(', ') : 'none';
+        if (models) models.textContent = 'Loaded: ' + loaded;
+      });
+    }
   }
 
   // Loaded models

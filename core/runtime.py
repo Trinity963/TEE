@@ -592,14 +592,39 @@ class Runtime:
         with self._lock:
             return list(self._loaded.values())
 
+    def _refresh_vram(self):
+        """Poll nvidia-smi for real VRAM usage and update GPU objects."""
+        try:
+            result = subprocess.run(
+                ["nvidia-smi", "--query-gpu=index,memory.used,memory.total",
+                 "--format=csv,noheader,nounits"],
+                capture_output=True, text=True, timeout=5,
+            )
+            if result.returncode != 0:
+                return
+            for line in result.stdout.strip().splitlines():
+                parts = [p.strip() for p in line.split(",")]
+                if len(parts) < 3:
+                    continue
+                idx      = int(parts[0])
+                used_mb  = float(parts[1])
+                total_mb = float(parts[2])
+                if idx in self._gpus:
+                    self._gpus[idx].vram_used_gb  = round(used_mb  / 1024, 2)
+                    self._gpus[idx].vram_total_gb = round(total_mb / 1024, 2)
+        except Exception as e:
+            log.warning(f"VRAM refresh failed: {e}")
+
     def gpu_status(self) -> List[dict]:
         """Return current GPU status."""
         with self._lock:
+            self._refresh_vram()
             return [g.to_dict() for g in self._gpus.values()]
 
     def system_status(self) -> dict:
         """Return full system status — GPUs, loaded models, registry count."""
         with self._lock:
+            self._refresh_vram()
             return {
                 "gpus":           [g.to_dict() for g in self._gpus.values()],
                 "loaded_models":  [m.to_dict() for m in self._loaded.values()],
