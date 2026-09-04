@@ -8,6 +8,20 @@ No cloud. No accounts. No API keys to anyone else's kingdom. Your weights. Your 
 
 ---
 
+## CLI
+
+![TEE CLI 1](docs/tee-cli-1.png)
+![TEE CLI 2](docs/tee-cli-2.png)
+
+## UI — Sovereign Dashboard
+
+![TEE Dashboard](docs/Main%20Dashboard.png)
+![TEE Models](docs/Models%20Dashbord.png)
+![TEE Directories](docs/Directories%20Dashboard.png)
+![TEE Config](docs/Config%20Dashboard.png)
+
+---
+
 ## Why TEE exists
 
 Every platform you build on will eventually change, restrict, monetize, or disappear.
@@ -24,9 +38,8 @@ TEE is the exit ramp. Once it's running, none of that touches you.
 
 TEE does **one thing** — and does it completely:
 
-```
-Your App  ──▶  TEE  ──▶  llama.cpp / vLLM  ──▶  Your GPU  ──▶  Your Model
-```
+Your App ──▶ TEE ──▶ llama.cpp / vLLM / Ollama ──▶ Your GPU ──▶ Your Model
+
 
 - Receives inference requests via OpenAI-compatible API
 - Knows which model to use
@@ -40,7 +53,6 @@ Everything else calls TEE. TEE calls nothing external.
 
 ## What TEE does NOT do
 
-- No UI (see VIVARIUM Dashboard for that)
 - No database
 - No auth layer
 - No cloud sync
@@ -53,21 +65,35 @@ Everything else calls TEE. TEE calls nothing external.
 
 ```bash
 # Clone
-git clone https://github.com/YOU/TEE.git
+git clone https://github.com/Trinity963/TEE.git
 cd TEE
-
-# Install
-pip install -r requirements.txt
 
 # Configure
 cp tee.config.example tee.config
 # Edit tee.config — set your models_dirs path
 
 # Run
-python tee.py
+python3 tee.py
 ```
 
 TEE starts, scans your model directories, registers everything it finds, and begins serving on `http://localhost:8765/v1/`
+
+---
+
+## Sovereign UI
+
+TEE ships with a built-in browser dashboard. No dependencies. No CDN. Pure Python + vanilla JS.
+
+```bash
+python3 ui/server.py
+```
+
+Opens on `http://localhost:8766/`
+
+**Dashboard** — GPU VRAM bars, loaded models, registry summary, live auto-refresh  
+**Models** — all registered models, arch, params, quant, size, context, tags, status  
+**Directories** — all watched model directories  
+**Config** — visual view of tee.config — no JSON editing required
 
 ---
 
@@ -75,40 +101,34 @@ TEE starts, scans your model directories, registers everything it finds, and beg
 
 Drop a GGUF into your models directory. TEE does the rest.
 
-```
-/models/mistral-7b-instruct-q4_k_m.gguf  ←  drop it here
+/models/mistral-7b-instruct-q4_k_m.gguf ← drop it here
 
 TEE detects it
 TEE reads the GGUF header
 TEE generates the modelfile automatically
 TEE registers the model
-Model is live on /v1/  ←  ready
-```
+Model is live on /v1/ ← ready
+
 
 No commands. No configuration. No technical knowledge required.
 
 ---
 
-## Module Integration
+## Ollama Adapter
 
-TEE is designed to be consumed as a module by any sovereign stack.
+TEE auto-discovers all models served by a local Ollama instance. GGUF and Ollama models appear unified in the same registry and API.
 
-```python
-from tee import TEE
+- Polls `localhost:11434` on startup and every 30 seconds
+- Skips cloud/remote stubs automatically
+- Infers tags from model name and capabilities (`tools`, `code`, `thinking`, `vision`)
+- Removes models that disappear from Ollama
+- Routes requests for Ollama models back through `localhost:11434`
 
-tee = TEE()
+No configuration needed. If Ollama is running, TEE finds it.
 
-# Chat
-response = tee.chat("mistral-7b-instruct", messages)
+---
 
-# List available models
-models = tee.list_models()
-
-# Check system status
-status = tee.status()
-```
-
-### OpenAI-compatible API
+## OpenAI-compatible API
 
 Any application that speaks the OpenAI API protocol works with TEE immediately — zero changes required.
 
@@ -139,112 +159,73 @@ TEE watches multiple model directories simultaneously. Models can live anywhere 
 ]
 ```
 
-TEE auto-detects drive type and suggests a label. You can rename it to anything you want — TEE remembers your choice permanently.
-
 ---
 
 ## Hardware Intelligence
 
 TEE reads your system on startup and never lets you load a model your hardware cannot run.
 
-```
 Your System:
-  GPU 0: RTX 5080  16GB
-  GPU 1: RTX 5080  16GB
-  Total VRAM: 32GB
+GPU 0: RTX 5080 16GB
+GPU 1: RTX 5080 16GB
+Total VRAM: 32GB
 
-mistral-7b-instruct Q4_K_M (4.1GB)  ✅ Runs on Single GPU
-llama3-70b Q4_K_M (38GB)            🔴 Needs Multi-GPU — TEE will span GPU 0+1
-llama3-70b F16 (140GB)              🚫 Cannot Run — exceeds total VRAM
-```
+mistral-7b-instruct Q4_K_M (4.1GB) ✅ Single GPU
+llama3-70b Q4_K_M (38GB) ✅ Multi-GPU — spans GPU 0+1
+llama3-70b F16 (140GB) 🚫 Exceeds total VRAM
 
-For users who don't know what any of that means — TEE says it in plain English, suggests what will work, and never lets a failed load be a surprise.
 
 ---
 
 ## Supported Backends
 
-| Backend    | Format       | Status  |
-|------------|--------------|---------|
+| Backend    | Format       | Status       |
+|------------|--------------|--------------|
 | llama.cpp  | GGUF         | ✅ Supported |
+| Ollama     | GGUF         | ✅ Supported |
 | vLLM       | Safetensors  | ✅ Supported |
-| koboldcpp  | GGUF         | 🔜 Planned  |
-| llamafile  | Llamafile    | 🔜 Planned  |
-
-Backend selection is automatic based on model format. Override in your modelfile if needed.
+| koboldcpp  | GGUF         | 🔜 Planned   |
+| llamafile  | Llamafile    | 🔜 Planned   |
 
 ---
 
 ## Directory Structure
 
-```
 TEE/
-├── core/              # Router engine
-│   ├── registry.py    # Model registry — reads manifests, watches dirs
-│   ├── runtime.py     # Load/unload, GPU placement, backend selection
-│   ├── gateway.py     # OpenAI-compatible API gateway
-│   └── detector.py    # GGUF header reader, modelfile generator
-├── adapters/          # Backend bridges
-│   ├── llamacpp.py    # llama.cpp adapter
-│   └── vllm.py        # vLLM adapter
-├── model-index/       # Community maintained model database
-│   ├── ratings.json   # Ratings, tags, download sources
-│   └── profiles/      # Per-model variant profiles
-├── drive-profiles/    # Drive type detection and health
-│   └── profiles.json
-├── gpu-profiles/      # GPU VRAM and capability database
-│   └── profiles.json
+├── tee.py # Entry point
+├── tee.config # Live config
+├── tee.config.example # Schema reference
+├── core/
+│ ├── registry.py # Model registry — reads manifests, watches dirs
+│ ├── runtime.py # Load/unload, GPU placement, backend selection
+│ ├── gateway.py # OpenAI-compatible API gateway
+│ └── detector.py # GGUF header reader, modelfile auto-generator
+├── adapters/
+│ └── ollama.py # Ollama adapter — auto-discovers local models
+├── ui/
+│ └── server.py # Sovereign browser UI — port 8766
+├── model-index/
+│ └── ratings.json # Community model index
+├── gpu-profiles/
+│ └── profiles.json # GPU VRAM database
+├── drive-profiles/
+│ └── profiles.json # Drive type detection
 ├── config/
-│   └── modelfile.example.json
-├── docs/              # Plain English documentation
-├── tee.config.example
-├── tee.py             # Entry point
-├── requirements.txt
-├── LICENSE
-└── README.md
-```
+│ └── modelfile.example.json
+└── docs/ # Screenshots and documentation
 
----
-
-## Modelfile Schema
-
-TEE auto-generates modelfiles from GGUF headers. You can also write your own.
-
-```json
-{
-  "name": "mistral-7b-instruct",
-  "file": "mistral-7b-instruct-v0.3-q4_k_m.gguf",
-  "format": "gguf",
-  "architecture": "mistral",
-  "parameters": "7B",
-  "quantization": "Q4_K_M",
-  "context": 8192,
-  "backend": "auto",
-  "gpu": "auto",
-  "defaults": {
-    "temperature": 0.7,
-    "top_p": 0.9,
-    "max_tokens": 2048
-  }
-}
-```
-
-Set `backend` and `gpu` to `"auto"` and TEE handles everything. Override only when you need to.
 
 ---
 
 ## VIVARIUM Integration
 
-TEE was built as the inference backbone of the [VIVARIUM](https://github.com/YOU/VIVARIUM) sovereign AI ecosystem.
+TEE is the inference backbone of the [VIVARIUM](https://github.com/Trinity963/VIVARIUM) sovereign AI ecosystem.
 
-Projects that run on TEE:
+MiniTrini ──┐
+Ethica ──┼──▶ TEE ──▶ llama.cpp / vLLM / Ollama ──▶ GPU
+TBS ──┤
+SARA ──┘
 
-| Project    | Role                              |
-|------------|-----------------------------------|
-| MiniTrini  | Sovereign AI stack — guard, chat, vision |
-| Ethica     | Sovereign AI platform             |
-| TBS        | Trinity Browser IDE               |
-| SARA       | Strategic Adaptive Relational Architecture |
 
 Any VIVARIUM project pointing at Ollama or an external API can point at TEE instead. Zero other changes required.
 
@@ -267,7 +248,6 @@ TEE is open source. Everything is open. Everything stays open.
 1. Fork the repo
 2. Make your change
 3. Submit a PR with a clear description
-4. Community reviews — merged if it helps everyone
 
 No CLAs. No corporate overhead. Just useful changes that help people run their own AI.
 
