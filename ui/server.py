@@ -9,10 +9,30 @@ MIT License — open source, sovereign, forever.
 import json
 import logging
 import os
+from collections import deque
+from datetime import datetime
 from http.server import HTTPServer, BaseHTTPRequestHandler
 from pathlib import Path
 
 log = logging.getLogger("tee.ui")
+
+# ── In-memory log buffer — last 200 lines across all TEE loggers ──────────────
+
+_LOG_BUFFER: deque = deque(maxlen=200)
+
+class _BufferHandler(logging.Handler):
+    """Captures log records into _LOG_BUFFER for the UI log panel."""
+    def emit(self, record: logging.LogRecord):
+        _LOG_BUFFER.append({
+            "t":     datetime.now().strftime("%H:%M:%S"),
+            "level": record.levelname,
+            "name":  record.name,
+            "msg":   record.getMessage(),
+        })
+
+_buf_handler = _BufferHandler()
+_buf_handler.setLevel(logging.DEBUG)
+logging.getLogger("tee").addHandler(_buf_handler)
 
 TEE_API   = "http://127.0.0.1:8765"
 UI_HOST   = "0.0.0.0"
@@ -249,6 +269,15 @@ HTML = r"""<!DOCTYPE html>
     <div class="card">
       <div class="card-title">Registry Summary</div>
       <div id="reg-summary" style="color:var(--muted);font-size:12px;">—</div>
+    </div>
+    <div class="card">
+      <div class="card-title" style="display:flex;align-items:center;gap:12px;">
+        Live Logs
+        <span style="color:var(--muted);font-size:11px;font-weight:normal;">last 200 lines</span>
+        <button class="btn" style="margin-left:auto" onclick="_logPaused=!_logPaused;this.textContent=_logPaused?'▶ Resume':'⏸ Pause'">⏸ Pause</button>
+        <button class="btn" onclick="document.getElementById('log-panel').innerHTML=''">✕ Clear</button>
+      </div>
+      <div id="log-panel" style="background:#0a0a0a;border:1px solid var(--border);border-radius:3px;font-family:monospace;font-size:11px;height:220px;overflow-y:auto;padding:8px 10px;color:var(--muted);line-height:1.6;"><span style="color:var(--border)">Waiting for logs…</span></div>
     </div>
   </div>
 
@@ -523,9 +552,34 @@ function renderConfig(cfg) {
     </div>`;
 }
 
+// ── Log panel ────────────────────────────────────────────────────────────────
+let _logPaused = false;
+let _lastLogCount = 0;
+const _levelColor = { INFO: 'var(--green)', WARNING: 'var(--yellow)', ERROR: 'var(--red)', DEBUG: 'var(--muted)' };
+
+async function fetchLogs() {
+  if (_logPaused) return;
+  try {
+    const r = await fetch('/proxy/logs');
+    const lines = await r.json();
+    if (lines.length === _lastLogCount) return;
+    _lastLogCount = lines.length;
+    const panel = document.getElementById('log-panel');
+    if (!panel) return;
+    const atBottom = panel.scrollHeight - panel.scrollTop <= panel.clientHeight + 32;
+    panel.innerHTML = lines.map(l => {
+      const col = _levelColor[l.level] || 'var(--muted)';
+      return `<div><span style="color:var(--border)">${l.t}</span> <span style="color:${col}">${l.level.padEnd(7)}</span> <span style="color:var(--accent2)">${l.name}</span> <span>${l.msg}</span></div>`;
+    }).join('');
+    if (atBottom) panel.scrollTop = panel.scrollHeight;
+  } catch(e) {}
+}
+
 // ── Auto-refresh every 5s ────────────────────────────────────────────────────
 fetchStatus();
+fetchLogs();
 setInterval(fetchStatus, 5000);
+setInterval(fetchLogs, 2000);
 </script>
 </body>
 </html>
@@ -555,6 +609,8 @@ class UIHandler(BaseHTTPRequestHandler):
             self._proxy(PROXY_ROUTES[path])
         elif path == "/proxy/config":
             self._serve_config()
+        elif path == "/proxy/logs":
+            self._serve_logs()
         else:
             self._404()
 
@@ -629,6 +685,14 @@ class UIHandler(BaseHTTPRequestHandler):
             self.wfile.write(body)
         except Exception as e:
             self._503()
+
+    def _serve_logs(self):
+        body = json.dumps(list(_LOG_BUFFER)).encode("utf-8")
+        self.send_response(200)
+        self.send_header("Content-Type", "application/json")
+        self.send_header("Content-Length", str(len(body)))
+        self.end_headers()
+        self.wfile.write(body)
 
     def _404(self):
         self.send_response(404)
