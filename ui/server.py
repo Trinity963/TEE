@@ -121,7 +121,7 @@ HTML = r"""<!DOCTYPE html>
     color: var(--accent);
     border-bottom-color: var(--accent);
   }
-  main { padding: 24px 28px; max-width: 1100px; }
+  main { padding: 24px 28px; }
   .page { display: none; }
   .page.active { display: block; }
   /* ── Cards ── */
