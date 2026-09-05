@@ -275,6 +275,16 @@
       <div class="feature-title">Idle Unload</div>
       <div class="feature-desc">Models unload automatically after idle timeout. VRAM is reclaimed without intervention. Load the next model without rebooting anything.</div>
     </div>
+    <div class="feature-card">
+      <div class="feature-icon">◉</div>
+      <div class="feature-title">Live Log Stream</div>
+      <div class="feature-desc">Real-time log panel on the dashboard. Every gateway request, model registration, and runtime event — live, color-coded, pauseable.</div>
+    </div>
+    <div class="feature-card">
+      <div class="feature-icon">⬇</div>
+      <div class="feature-title">HuggingFace Downloader</div>
+      <div class="feature-desc">Download any GGUF directly from HuggingFace via the UI. Live progress bars. Auto-registers the model when complete. No CLI required.</div>
+    </div>
   </div>
 </section>
 
@@ -293,11 +303,9 @@ cd TEE
 cp tee.config.example tee.config
 <span class="comment"># Edit tee.config — set your models_dirs path</span>
 
-<span class="comment"># Run TEE gateway</span>
+<span class="comment"># Run — one command starts everything</span>
 python3 tee.py
-
-<span class="comment"># Run sovereign UI (optional, separate terminal)</span>
-python3 ui/server.py</pre>
+<span class="comment"># Gateway on :8765  ·  Sovereign UI on :8766  ·  Ollama adapter live</span></pre>
 
   <p>TEE starts, scans your model directories, registers everything it finds, and begins serving on <code style="color:var(--accent)">http://localhost:8765/v1/</code></p>
   <p>Sovereign UI opens on <code style="color:var(--accent)">http://localhost:8766/</code></p>
@@ -321,16 +329,24 @@ python3 ui/server.py</pre>
 <section id="ui">
   <div class="section-label">Sovereign UI</div>
   <h2>See Everything. <span>Control Everything.</span></h2>
-  <p>TEE ships with a built-in browser dashboard. No Node. No npm. No CDN. One Python file, pure vanilla JS, served locally.</p>
+  <p>TEE ships with a built-in browser dashboard. No Node. No npm. No CDN. One Python file, pure vanilla JS, served locally. Load and unload models from the UI. Download from HuggingFace with live progress bars. Watch real VRAM usage and live logs — all from one sovereign interface.</p>
 
   <div class="screenshots">
     <div class="screenshot-wrap">
       <img src="Main%20Dashboard.png" alt="TEE Dashboard"/>
-      <div class="screenshot-label">Dashboard — GPU status, VRAM bars, loaded models</div>
+      <div class="screenshot-label">Dashboard — GPU status, real VRAM bars, loaded models</div>
+    </div>
+    <div class="screenshot-wrap">
+      <img src="live_logs.png" alt="TEE Live Logs"/>
+      <div class="screenshot-label">Dashboard — live log stream panel, color-coded by level</div>
     </div>
     <div class="screenshot-wrap">
       <img src="Models%20Dashbord.png" alt="TEE Models"/>
-      <div class="screenshot-label">Models — full registry, quant, size, context, tags</div>
+      <div class="screenshot-label">Models — full registry, load/unload buttons per model</div>
+    </div>
+    <div class="screenshot-wrap">
+      <img src="Huggingface%20downloader.png" alt="TEE HuggingFace Downloader"/>
+      <div class="screenshot-label">Models — HuggingFace download panel, live progress bars</div>
     </div>
     <div class="screenshot-wrap">
       <img src="Directories%20Dashboard.png" alt="TEE Directories"/>
