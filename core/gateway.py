@@ -155,6 +155,8 @@ class TEEHandler(BaseHTTPRequestHandler):
 
         if path == "/v1/models":
             self._handle_list_models()
+        elif path == "/v1/models/downloads":
+            self._handle_downloads_list()
         elif path == "/health":
             self._handle_health()
         elif path == "/status":
@@ -175,8 +177,40 @@ class TEEHandler(BaseHTTPRequestHandler):
             self._handle_load()
         elif path == "/v1/models/unload":
             self._handle_unload()
+        elif path == "/v1/models/download":
+            self._handle_download()
         else:
             _error(self, 404, f"Unknown endpoint: {path}", "not_found")
+
+    def _handle_downloads_list(self):
+        """GET /v1/models/downloads — list all downloads and their progress."""
+        if not self.server.downloader:
+            _error(self, 503, "Downloader not available.", "downloader_unavailable")
+            return
+        _json_response(self, 200, {"downloads": self.server.downloader.list_downloads()})
+
+    def _handle_download(self):
+        """POST /v1/models/download — start a HuggingFace download."""
+        if not self.server.downloader:
+            _error(self, 503, "Downloader not available.", "downloader_unavailable")
+            return
+        body = _read_body(self)
+        if not body:
+            _error(self, 400, "Body required: {repo_id, filename}", "invalid_request")
+            return
+        repo_id  = body.get("repo_id", "")
+        filename = body.get("filename", "")
+        if not repo_id or not filename:
+            _error(self, 400, "Fields 'repo_id' and 'filename' are required.", "invalid_request")
+            return
+        log.info(f"POST /v1/models/download — {repo_id}/{filename}")
+        download_id = self.server.downloader.start_download(repo_id, filename)
+        _json_response(self, 200, {
+            "status":      "started",
+            "download_id": download_id,
+            "repo_id":     repo_id,
+            "filename":    filename,
+        })
 
     def _handle_load(self):
         """POST /v1/models/load — load a model into a backend."""
@@ -346,10 +380,11 @@ class TEEServer(HTTPServer):
 
     allow_reuse_address = True
 
-    def __init__(self, host: str, port: int, registry: Registry, runtime: Runtime):
+    def __init__(self, host: str, port: int, registry: Registry, runtime: Runtime, downloader=None):
         super().__init__((host, port), TEEHandler)
-        self.registry = registry
-        self.runtime  = runtime
+        self.registry   = registry
+        self.runtime    = runtime
+        self.downloader = downloader
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -364,15 +399,17 @@ class Gateway:
 
     def __init__(
         self,
-        registry: Registry,
-        runtime:  Runtime,
-        host:     str = DEFAULT_HOST,
-        port:     int = DEFAULT_PORT,
+        registry:   Registry,
+        runtime:    Runtime,
+        downloader = None,
+        host:       str = DEFAULT_HOST,
+        port:       int = DEFAULT_PORT,
     ):
-        self._registry = registry
-        self._runtime  = runtime
-        self._host     = host
-        self._port     = port
+        self._registry   = registry
+        self._runtime    = runtime
+        self._downloader = downloader
+        self._host       = host
+        self._port       = port
         self._server:  Optional[TEEServer]      = None
         self._thread:  Optional[threading.Thread] = None
 
@@ -380,7 +417,7 @@ class Gateway:
         """Start the gateway in a background thread."""
         self._server = TEEServer(
             self._host, self._port,
-            self._registry, self._runtime,
+            self._registry, self._runtime, self._downloader,
         )
         self._thread = threading.Thread(
             target=self._server.serve_forever,

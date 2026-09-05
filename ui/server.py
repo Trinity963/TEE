@@ -291,6 +291,17 @@ HTML = r"""<!DOCTYPE html>
       <div class="card-title">Registered Models</div>
       <div id="models-table"><div class="empty">Waiting for TEE…</div></div>
     </div>
+    <div class="card">
+      <div class="card-title">Download from HuggingFace</div>
+      <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:12px;">
+        <input id="dl-repo" type="text" placeholder="repo_id  e.g. bartowski/Mistral-7B-v0.3-GGUF"
+          style="flex:2;min-width:200px;background:var(--bg3);border:1px solid var(--border);color:var(--text);padding:6px 10px;border-radius:3px;font-family:monospace;font-size:12px;"/>
+        <input id="dl-file" type="text" placeholder="filename  e.g. Mistral-7B-v0.3.Q4_K_M.gguf"
+          style="flex:2;min-width:200px;background:var(--bg3);border:1px solid var(--border);color:var(--text);padding:6px 10px;border-radius:3px;font-family:monospace;font-size:12px;"/>
+        <button class="btn" onclick="startDownload()" style="white-space:nowrap;">⬇ Download</button>
+      </div>
+      <div id="dl-list"><div class="empty">No downloads yet.</div></div>
+    </div>
   </div>
 
   <!-- ── DIRECTORIES ── -->
@@ -552,6 +563,55 @@ function renderConfig(cfg) {
     </div>`;
 }
 
+// ── Download panel ───────────────────────────────────────────────────────────
+async function startDownload() {
+  const repo = document.getElementById('dl-repo').value.trim();
+  const file = document.getElementById('dl-file').value.trim();
+  if (!repo || !file) { alert('Both repo_id and filename are required.'); return; }
+  try {
+    const r = await fetch('/proxy/models/download', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({repo_id: repo, filename: file}),
+    });
+    const data = await r.json();
+    if (!r.ok) { alert('Error: ' + (data.error?.message || JSON.stringify(data))); return; }
+    document.getElementById('dl-repo').value = '';
+    document.getElementById('dl-file').value = '';
+    fetchDownloads();
+  } catch(e) { alert('Request failed: ' + e); }
+}
+
+async function fetchDownloads() {
+  try {
+    const r = await fetch('/proxy/models/downloads');
+    if (!r.ok) return;
+    const data = await r.json();
+    const list = document.getElementById('dl-list');
+    if (!list) return;
+    const downloads = data.downloads || [];
+    if (downloads.length === 0) {
+      list.innerHTML = '<div class="empty">No downloads yet.</div>';
+      return;
+    }
+    list.innerHTML = downloads.map(d => {
+      const pct = d.progress.toFixed(1);
+      const col = d.status === 'done' ? 'var(--green)' : d.status === 'error' ? 'var(--red)' : 'var(--accent)';
+      const mb  = d.bytes_total ? (d.bytes_done/1024/1024).toFixed(0) + ' / ' + (d.bytes_total/1024/1024).toFixed(0) + ' MB' : '';
+      return `<div style="margin-bottom:10px;">
+        <div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:4px;">
+          <span style="color:var(--text);font-family:monospace">${d.repo_id} / ${d.filename}</span>
+          <span style="color:${col}">${d.status}  ${pct}%  ${mb}</span>
+        </div>
+        <div style="background:#111;border-radius:2px;height:6px;overflow:hidden;">
+          <div style="background:${col};height:100%;width:${pct}%;transition:width 0.5s;"></div>
+        </div>
+        ${d.error ? '<div style="color:var(--red);font-size:11px;margin-top:4px;">' + d.error + '</div>' : ''}
+      </div>`;
+    }).join('');
+  } catch(e) {}
+}
+
 // ── Log panel ────────────────────────────────────────────────────────────────
 let _logPaused = false;
 let _lastLogCount = 0;
@@ -578,8 +638,10 @@ async function fetchLogs() {
 // ── Auto-refresh every 5s ────────────────────────────────────────────────────
 fetchStatus();
 fetchLogs();
+fetchDownloads();
 setInterval(fetchStatus, 5000);
 setInterval(fetchLogs, 2000);
+setInterval(fetchDownloads, 3000);
 </script>
 </body>
 </html>
@@ -591,8 +653,9 @@ PROXY_ROUTES = {
     "/proxy/models": f"{TEE_API}/v1/models",
 }
 PROXY_POST_ROUTES = {
-    "/proxy/models/load":   f"{TEE_API}/v1/models/load",
-    "/proxy/models/unload": f"{TEE_API}/v1/models/unload",
+    "/proxy/models/load":     f"{TEE_API}/v1/models/load",
+    "/proxy/models/unload":   f"{TEE_API}/v1/models/unload",
+    "/proxy/models/download": f"{TEE_API}/v1/models/download",
 }
 
 
@@ -611,6 +674,8 @@ class UIHandler(BaseHTTPRequestHandler):
             self._serve_config()
         elif path == "/proxy/logs":
             self._serve_logs()
+        elif path == "/proxy/models/downloads":
+            self._proxy(f"{TEE_API}/v1/models/downloads")
         else:
             self._404()
 

@@ -32,10 +32,11 @@ CORE = ROOT / "core"
 sys.path.insert(0, str(CORE))
 
 from registry import Registry
-from runtime  import Runtime
-from gateway  import Gateway
+from runtime    import Runtime
+from gateway    import Gateway
+from downloader import Downloader
 sys.path.insert(0, str(Path(__file__).parent / 'adapters'))
-from ollama   import OllamaAdapter
+from ollama     import OllamaAdapter
 sys.path.insert(0, str(Path(__file__).parent / 'ui'))
 import server as ui_server
 
@@ -306,8 +307,15 @@ def main():
     runtime = Runtime(registry, config)
     runtime.start()
 
+    # Start downloader
+    gguf_dir = next(
+        (d["path"] for d in config.get("models_dirs", []) if "gguf" in d.get("path","").lower()),
+        "/srv/LLMs/gguf"
+    )
+    downloader = Downloader(gguf_dir)
+
     # Start gateway
-    gateway = Gateway(registry, runtime, host=gw_host, port=gw_port)
+    gateway = Gateway(registry, runtime, downloader, host=gw_host, port=gw_port)
     gateway.start()
 
     # Start UI server
