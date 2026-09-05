@@ -16,7 +16,9 @@ No cloud. No accounts. No API keys to anyone else's kingdom. Your weights. Your 
 ## UI — Sovereign Dashboard
 
 ![TEE Dashboard](docs/Main%20Dashboard.png)
+![TEE Live Logs](docs/live_logs.png)
 ![TEE Models](docs/Models%20Dashbord.png)
+![TEE HuggingFace Downloader](docs/Huggingface%20downloader.png)
 ![TEE Directories](docs/Directories%20Dashboard.png)
 ![TEE Config](docs/Config%20Dashboard.png)
 
@@ -90,8 +92,8 @@ python3 ui/server.py
 
 Opens on `http://localhost:8766/`
 
-**Dashboard** — GPU VRAM bars, loaded models, registry summary, live auto-refresh  
-**Models** — all registered models, arch, params, quant, size, context, tags, status  
+**Dashboard** — real VRAM bars (live nvidia-smi), loaded models, registry summary, live log stream panel, auto-refresh every 5s  
+**Models** — full registry table, load/unload buttons per model, HuggingFace download panel with live progress bars  
 **Directories** — all watched model directories  
 **Config** — visual view of tee.config — no JSON editing required
 
@@ -132,19 +134,33 @@ No configuration needed. If Ollama is running, TEE finds it.
 
 Any application that speaks the OpenAI API protocol works with TEE immediately — zero changes required.
 
-```bash
+````bash
 # List models
 curl http://localhost:8765/v1/models
 
 # Chat
 curl http://localhost:8765/v1/chat/completions \
   -H "Content-Type: application/json" \
-  -d '{
-    "model": "mistral-7b-instruct",
-    "messages": [{"role": "user", "content": "Hello"}]
-  }'
-```
+  -d '{"model": "mistral-7b-instruct", "messages": [{"role": "user", "content": "Hello"}]}'
 
+# Load a model
+curl -X POST http://localhost:8765/v1/models/load \
+  -H "Content-Type: application/json" \
+  -d '{"model": "mistral-7b-instruct"}'
+
+# Unload a model
+curl -X POST http://localhost:8765/v1/models/unload \
+  -H "Content-Type: application/json" \
+  -d '{"model": "mistral-7b-instruct"}'
+
+# Download from HuggingFace
+curl -X POST http://localhost:8765/v1/models/download \
+  -H "Content-Type: application/json" \
+  -d '{"repo_id": "bartowski/Mistral-7B-v0.3-GGUF", "filename": "Mistral-7B-v0.3.Q4_K_M.gguf"}'
+
+# List active downloads
+curl http://localhost:8765/v1/models/downloads
+```
 ---
 
 ## Multi-Directory Model Support
