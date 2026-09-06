@@ -36,7 +36,8 @@ from runtime    import Runtime
 from gateway    import Gateway
 from downloader import Downloader
 sys.path.insert(0, str(Path(__file__).parent / 'adapters'))
-from ollama     import OllamaAdapter
+from ollama      import OllamaAdapter
+from openrouter  import OpenRouterAdapter
 sys.path.insert(0, str(Path(__file__).parent / 'ui'))
 import server as ui_server
 
@@ -303,6 +304,18 @@ def main():
     # Start Ollama adapter
     ollama_adapter = OllamaAdapter(registry)
     ollama_adapter.start()
+
+    # Start OpenRouter adapter if configured
+    or_config   = config.get("openrouter", {})
+    or_api_key  = or_config.get("api_key", "")
+    or_enabled  = or_config.get("enabled", False)
+    or_free_only = or_config.get("free_only", True)
+    openrouter_adapter = None
+    if or_enabled and or_api_key and or_api_key != "YOUR_KEY_HERE":
+        openrouter_adapter = OpenRouterAdapter(registry, or_api_key, or_free_only)
+        openrouter_adapter.start()
+    else:
+        log.info("OpenRouter adapter disabled — set openrouter.enabled and api_key in tee.config")
     # Start runtime
     runtime = Runtime(registry, config)
     runtime.start()
@@ -350,6 +363,8 @@ def main():
         gateway.stop()
         runtime.stop()
         ollama_adapter.stop()
+        if openrouter_adapter:
+            openrouter_adapter.stop()
         registry.stop_watching()
         print("TEE stopped. Sovereign to the end.\n")
         sys.exit(0)

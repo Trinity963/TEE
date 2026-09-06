@@ -84,6 +84,37 @@ def _read_body(handler) -> Optional[dict]:
         return None
 
 
+def _proxy_request_openrouter(entry, body: dict) -> tuple:
+    """Forward a chat completion request to OpenRouter API."""
+    try:
+        payload = dict(body)
+        payload["model"] = entry.or_model_id
+        data = json.dumps(payload).encode("utf-8")
+        req  = urllib.request.Request(
+            f"{entry.or_base}/chat/completions",
+            data=data,
+            headers={
+                "Content-Type":  "application/json",
+                "Authorization": f"Bearer {entry.or_api_key}",
+                "HTTP-Referer":  "https://github.com/Trinity963/TEE",
+                "X-Title":       "TEE Trinity Execution Engine",
+            },
+            method="POST",
+        )
+        with urllib.request.urlopen(req, timeout=120) as resp:
+            raw      = resp.read()
+            response = json.loads(raw.decode("utf-8"))
+            return response, resp.status
+    except urllib.error.HTTPError as e:
+        raw = e.read().decode("utf-8", errors="replace")
+        try:
+            return json.loads(raw), e.code
+        except Exception:
+            return {"error": {"message": raw}}, e.code
+    except Exception as e:
+        return {"error": {"message": str(e)}}, 502
+
+
 def _wait_for_backend(url: str, timeout: float = BACKEND_READY_TIMEOUT) -> bool:
     """Poll a backend health endpoint until it responds or timeout."""
     deadline = time.time() + timeout
@@ -309,8 +340,8 @@ class TEEHandler(BaseHTTPRequestHandler):
                 )
             return
 
-        # Ollama is always already running — skip health wait
-        if loaded.backend != "ollama":
+        # Ollama and OpenRouter are always ready — skip health wait
+        if loaded.backend not in ("ollama", "openrouter"):
             ready = _wait_for_backend(loaded.base_url())
             if not ready:
                 _error(
@@ -319,6 +350,19 @@ class TEEHandler(BaseHTTPRequestHandler):
                     "backend_timeout",
                 )
                 return
+
+        # OpenRouter — proxy directly to openrouter.ai
+        if loaded.backend == "openrouter":
+            or_entry = getattr(loaded, "_or_entry", None)
+            if or_entry is None:
+                or_entry = self.server.registry.get_model(model_name)
+            if or_entry is None:
+                _error(self, 503, f"OpenRouter entry missing for '{model_name}'.", "backend_unavailable")
+                return
+            response, status = _proxy_request_openrouter(or_entry, body)
+            loaded.touch()
+            _json_response(self, status, response)
+            return
 
         # Apply model defaults if not overridden in request
         entry = self.server.registry.get_model(model_name)

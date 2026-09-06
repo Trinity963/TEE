@@ -363,6 +363,22 @@ class Runtime:
                 log.info(f"✓ Ollama passthrough: {name}  → {loaded.base_url()}")
                 return loaded
 
+            # OpenRouter models — proxy to openrouter.ai, no local process
+            if backend == "openrouter":
+                loaded = LoadedModel(
+                    name    = name,
+                    backend = "openrouter",
+                    gpu_ids = [],
+                    port    = 443,
+                    process = None,
+                    size_gb = 0.0,
+                )
+                loaded._or_entry = entry
+                self._loaded[name] = loaded
+                self._registry.update_status(name, "loaded")
+                log.info(f"✓ OpenRouter passthrough: {name}  → {entry.or_base}")
+                return loaded
+
             process = self._launch_backend(entry, backend, gpu_ids, port)
             if process is None:
                 self._registry.update_status(name, "error", "Backend failed to launch")
