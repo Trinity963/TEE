@@ -326,6 +326,21 @@ HTML = r"""<!DOCTYPE html>
       <div class="card-title">TEE Configuration</div>
       <div id="config-view"><div class="empty">Loading…</div></div>
     </div>
+    <div class="card">
+      <div class="card-title">API Keys</div>
+      <div style="display:grid;gap:14px;margin-top:4px;">
+        <div>
+          <div style="color:var(--muted);font-size:11px;letter-spacing:1px;margin-bottom:6px;">OPENROUTER API KEY</div>
+          <div style="display:flex;gap:10px;align-items:center;">
+            <input id="key-openrouter" type="password" placeholder="sk-or-v1-..."
+              style="flex:1;background:var(--bg3);border:1px solid var(--border);color:var(--text);padding:6px 10px;border-radius:3px;font-family:monospace;font-size:12px;"/>
+            <button class="btn" onclick="toggleKeyVis('key-openrouter', this)">Show</button>
+            <button class="btn" onclick="saveKey('openrouter', document.getElementById('key-openrouter').value)" style="color:var(--green)">Save</button>
+          </div>
+          <div id="key-openrouter-status" style="font-size:11px;margin-top:4px;color:var(--muted);"></div>
+        </div>
+      </div>
+    </div>
   </div>
 
 </main>
@@ -637,6 +652,36 @@ async function fetchLogs() {
 
 // ── Auto-refresh every 5s ────────────────────────────────────────────────────
 fetchStatus();
+// ── API Key management ───────────────────────────────────────────────────────
+function toggleKeyVis(inputId, btn) {
+  const el = document.getElementById(inputId);
+  if (el.type === 'password') { el.type = 'text'; btn.textContent = 'Hide'; }
+  else { el.type = 'password'; btn.textContent = 'Show'; }
+}
+
+async function saveKey(service, value) {
+  const statusEl = document.getElementById('key-' + service + '-status');
+  if (!value || !value.trim()) {
+    if (statusEl) statusEl.textContent = 'Key cannot be empty.';
+    return;
+  }
+  try {
+    const r = await fetch('/proxy/keys/save', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({service, key: value.trim()}),
+    });
+    const data = await r.json();
+    if (r.ok) {
+      if (statusEl) { statusEl.style.color = 'var(--green)'; statusEl.textContent = '✓ Saved — restart TEE to apply.'; }
+    } else {
+      if (statusEl) { statusEl.style.color = 'var(--red)'; statusEl.textContent = 'Error: ' + (data.error || 'unknown'); }
+    }
+  } catch(e) {
+    if (statusEl) { statusEl.style.color = 'var(--red)'; statusEl.textContent = 'Request failed: ' + e; }
+  }
+}
+
 fetchLogs();
 fetchDownloads();
 setInterval(fetchStatus, 5000);
@@ -657,6 +702,7 @@ PROXY_POST_ROUTES = {
     "/proxy/models/unload":   f"{TEE_API}/v1/models/unload",
     "/proxy/models/download": f"{TEE_API}/v1/models/download",
 }
+KEY_SAVE_ROUTE = "/proxy/keys/save"
 
 
 class UIHandler(BaseHTTPRequestHandler):
@@ -682,6 +728,9 @@ class UIHandler(BaseHTTPRequestHandler):
     def do_POST(self):
         import urllib.request, urllib.error
         path = self.path.split("?")[0]
+        if path == KEY_SAVE_ROUTE:
+            self._save_key()
+            return
         if path not in PROXY_POST_ROUTES:
             self._404()
             return
@@ -758,6 +807,40 @@ class UIHandler(BaseHTTPRequestHandler):
         self.send_header("Content-Length", str(len(body)))
         self.end_headers()
         self.wfile.write(body)
+
+    def _save_key(self):
+        """POST /proxy/keys/save — write an API key to tee.config."""
+        import json as _json
+        try:
+            length = int(self.headers.get("Content-Length", 0))
+            body   = _json.loads(self.rfile.read(length).decode("utf-8"))
+            service = body.get("service", "")
+            key     = body.get("key", "").strip()
+            if not service or not key:
+                raise ValueError("service and key are required")
+            cfg_path = Path(__file__).parent.parent / "tee.config"
+            with open(cfg_path) as f:
+                cfg = _json.load(f)
+            if service == "openrouter":
+                cfg.setdefault("openrouter", {})["api_key"] = key
+                cfg.setdefault("openrouter", {})["enabled"] = True
+            else:
+                raise ValueError(f"Unknown service: {service}")
+            with open(cfg_path, "w") as f:
+                _json.dump(cfg, f, indent=2)
+            resp = _json.dumps({"status": "saved", "service": service}).encode()
+            self.send_response(200)
+            self.send_header("Content-Type", "application/json")
+            self.send_header("Content-Length", str(len(resp)))
+            self.end_headers()
+            self.wfile.write(resp)
+        except Exception as e:
+            resp = _json.dumps({"error": str(e)}).encode()
+            self.send_response(400)
+            self.send_header("Content-Type", "application/json")
+            self.send_header("Content-Length", str(len(resp)))
+            self.end_headers()
+            self.wfile.write(resp)
 
     def _404(self):
         self.send_response(404)
