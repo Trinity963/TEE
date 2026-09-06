@@ -21,6 +21,8 @@ No cloud. No accounts. No API keys to anyone else's kingdom. Your weights. Your 
 ![TEE HuggingFace Downloader](docs/Huggingface%20downloader.png)
 ![TEE Directories](docs/Directories%20Dashboard.png)
 ![TEE Config](docs/Config%20Dashboard.png)
+![TEE API Keys](docs/config's%20API%20keys.png)
+![TEE OpenRouter Models](docs/reg'd%20models.png)
 
 ---
 
@@ -95,7 +97,7 @@ Opens on `http://localhost:8766/`
 **Dashboard** — real VRAM bars (live nvidia-smi), loaded models, registry summary, live log stream panel, auto-refresh every 5s  
 **Models** — full registry table, load/unload buttons per model, HuggingFace download panel with live progress bars  
 **Directories** — all watched model directories  
-**Config** — visual view of tee.config — no JSON editing required
+**Config** — visual view of tee.config, API Keys panel — save OpenRouter key from the UI, never hardcoded
 
 ---
 
