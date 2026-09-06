@@ -359,6 +359,37 @@ class TEEHandler(BaseHTTPRequestHandler):
             if or_entry is None:
                 _error(self, 503, f"OpenRouter entry missing for '{model_name}'.", "backend_unavailable")
                 return
+            # Streaming — pipe SSE directly back to client
+            if body.get("stream", False):
+                try:
+                    payload = dict(body)
+                    payload["model"] = or_entry.or_model_id
+                    data = json.dumps(payload).encode("utf-8")
+                    req = urllib.request.Request(
+                        f"{or_entry.or_base}/chat/completions",
+                        data=data,
+                        headers={
+                            "Content-Type":  "application/json",
+                            "Authorization": f"Bearer {or_entry.or_api_key}",
+                            "HTTP-Referer":  "https://github.com/Trinity963/TEE",
+                            "X-Title":       "TEE Trinity Execution Engine",
+                        },
+                        method="POST",
+                    )
+                    with urllib.request.urlopen(req, timeout=120) as resp:
+                        self.send_response(200)
+                        self.send_header("Content-Type", "text/event-stream")
+                        self.send_header("Cache-Control", "no-cache")
+                        self.send_header("Access-Control-Allow-Origin", "*")
+                        self.end_headers()
+                        for line in resp:
+                            self.wfile.write(line)
+                            self.wfile.flush()
+                except Exception as e:
+                    _error(self, 502, str(e), "upstream_error")
+                loaded.touch()
+                return
+            # Non-streaming
             response, status = _proxy_request_openrouter(or_entry, body)
             loaded.touch()
             _json_response(self, status, response)
